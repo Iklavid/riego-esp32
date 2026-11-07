@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riego inteligente · Entrar</title>
+<link rel="stylesheet" href="/web/app.css">
+</head>
+<body>
+<main>
+  <div class="card login">
+    <div class="logo" style="margin-bottom:14px">💧 Riego <span>inteligente</span></div>
+    <form id="f">
+      <label class="lab2" for="u">Usuario</label>
+      <input class="caja" id="u" autocomplete="username" required autofocus>
+      <label class="lab2" for="c">Contraseña</label>
+      <input class="caja" id="c" type="password" autocomplete="current-password" required>
+      <button class="btn verde" style="width:100%">Entrar</button>
+      <p id="msg" class="mal" style="margin-top:10px;font-size:13px"></p>
+    </form>
+  </div>
+</main>
+<script>
+document.getElementById('f').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const msg = document.getElementById('msg');
+  msg.textContent = '';
+  try {
+    const r = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({usuario: document.getElementById('u').value, clave: document.getElementById('c').value})});
+    if (r.ok) { location.href = '/'; return; }
+    const d = await r.json().catch(() => ({}));
+    msg.textContent = d.detail || 'No se pudo entrar';
+  } catch (e) { msg.textContent = 'Sin conexión con el gestor'; }
+  document.getElementById('c').value = '';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Broker Mosquitto del riego. KeepAlive: si se cae, macOS lo vuelve a arrancar solo. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.riego.mosquitto</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/TU_USUARIO/.riego/mosquitto-bin/sbin/mosquitto</string>
+    <string>-c</string>
+    <string>/Users/TU_USUARIO/.riego/mosquitto/mosquitto.conf</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardErrorPath</key>
+  <string>/Users/TU_USUARIO/.riego/mosquitto/launchd.err</string>
+</dict>
+</plist>

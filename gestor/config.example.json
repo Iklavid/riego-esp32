@@ -1,0 +1,81 @@
+{
+  "ha": {
+    "host": "http://127.0.0.1:8123",
+    "token": "CAMBIAR"
+  },
+  "valvulas": {
+    "nombres": {
+      "1": "Entrada bomba",
+      "2": "Árboles",
+      "3": "Huerto",
+      "4": "Parterre",
+      "5": "Parte alta",
+      "6": "Aux 1",
+      "7": "Aux 2",
+      "8": "Aux 3",
+      "9": "Entrada calle"
+    }
+  },
+  "sensores": {
+    "temp": "sensor.riego_temperatura",
+    "hum_aire": "sensor.riego_humedad_aire",
+    "hum_suelo": "sensor.riego_humedad_suelo"
+  },
+  "voice_assistant": {
+    "deepseek_api_key": "CAMBIAR"
+  },
+  "ia": {
+    "motor": "deepseek",
+    "modelo": "deepseek-v4-flash",
+    "modelo_pro": "deepseek-v4-pro",
+    "modelo_codigo": "deepseek-v4-flash",
+    "prompt_sistema": "Eres el asistente de un sistema de riego inteligente con válvulas por zonas, sensores de temperatura, humedad del aire y del suelo, y acceso a Home Assistant. Responde de forma breve, clara y en español.",
+    "max_tokens": 800
+  },
+  "mqtt": {
+    "host": "127.0.0.1",
+    "port": 1883,
+    "user": "gestor",
+    "pass": "CAMBIAR",
+    "client_id": "gestor-riego"
+  },
+  "nodo": {
+    "client_id": "ESPRiegoS3",
+    "tipo": "ESP32-S3 central",
+    "wifi_ssid": "CAMBIAR",
+    "pines_reles": [
+      5,
+      6,
+      7,
+      8,
+      17,
+      18,
+      21,
+      38
+    ],
+    "pin_dht": 4,
+    "pin_rf_rx": 15,
+    "pin_rf_tx": 40
+  },
+  "nodos": {
+    "nombres": {
+      "1": "N1",
+      "2": "N2",
+      "3": "N3",
+      "4": "N4",
+      "5": "N5",
+      "6": "N6",
+      "7": "N7",
+      "8": "N8"
+    }
+  },
+  "topics": {
+    "valvula_set": "riego/valvula/{id}/set",
+    "valvula_estado": "riego/valvula/+/estado",
+    "clima_temp": "riego/clima/temperatura",
+    "clima_hum": "riego/clima/humedad",
+    "suelo": "riego/sensores/+",
+    "lluvia": "riego/clima/lluvia",
+    "deposito": "riego/deposito/nivel"
+  }
+}

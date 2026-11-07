@@ -1,0 +1,16 @@
+# Claves y configuracion real
+**/include/secretos.h
+gestor/config.json
+.env
+# Generados
+.pio/
+venv/
+.venv/
+__pycache__/
+*.db
+*.log
+*.pid
+data/
+.DS_Store
+*.bak*
+.claude/settings.local.json

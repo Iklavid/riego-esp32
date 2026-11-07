@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Anuncia en la red "aqui esta el broker del riego" (mDNS _mqtt._tcp, puerto 1883).
+     Las placas lo buscan por la marca riego=1. prio: el servidor principal lleva la mas alta. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.riego.anuncio</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/dns-sd</string>
+    <string>-R</string>
+    <string>Broker riego Mac</string>
+    <string>_mqtt._tcp</string>
+    <string>local</string>
+    <string>1883</string>
+    <string>riego=1</string>
+    <string>prio=10</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/dev/null</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/TU_USUARIO/.riego/logs/anuncio.log</string>
+</dict>
+</plist>

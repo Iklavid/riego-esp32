@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riego inteligente</title>
+<link rel="stylesheet" href="/web/app.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">💧 Riego <span>inteligente</span></div>
+  <span class="chip" id="chipMqtt">● conectando…</span>
+  <span class="chip ocultar-movil" id="chipInt">Inteligente: --</span>
+  <nav>
+    <a data-p="panel" class="activo">Panel</a>
+    <a data-p="sensores">Sensores</a>
+    <a data-p="programador">Programador</a>
+    <a data-p="inteligente">Inteligente</a>
+    <a data-p="historial">Historial</a>
+    <a id="salir" title="Cerrar sesión">⎋ Salir</a>
+  </nav>
+</div>
+
+<main>
+<!-- ============================ PANEL ============================ -->
+<section id="p-panel">
+  <h1>Panel de riego</h1>
+  <p class="sub" id="subPanel">Riego</p>
+
+  <div class="grid c3" id="placas"></div>
+
+  <div class="grid c3" style="margin-top:14px">
+    <div class="card">
+      <h2>🌡 Clima</h2>
+      <div class="fila"><span class="lab">Temperatura</span><span class="dat" id="vTemp">--</span></div>
+      <div class="fila"><span class="lab">Humedad del aire</span><span class="dat" id="vHum">--</span></div>
+      <div class="fila"><span class="lab">Lluvia</span><span class="dat" id="vLluvia">--</span></div>
+    </div>
+    <div class="card">
+      <h2>🛢 Depósito</h2>
+      <div class="fila"><span class="lab">Nivel</span><span class="dat" id="vDep">--</span></div>
+      <div class="barra"><i id="barDep" style="width:0"></i></div>
+      <p class="muted" style="font-size:12px;margin-top:8px">Por debajo del 10 % no se riega en automático.</p>
+    </div>
+    <div class="card">
+      <h2>🚦 ¿Se puede regar?</h2>
+      <div class="fila"><span class="lab">Riego automático</span><span class="dat" id="vBloqueo">--</span></div>
+      <div class="fila"><span class="lab">Zonas regando</span><span class="dat" id="vRegando">--</span></div>
+      <div class="fila"><span class="lab">Turnos en cola</span><span class="dat" id="vCola">--</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🚰 Entradas de agua <span class="muted" style="text-transform:none;letter-spacing:0">— siempre abiertas, solo se cierran por avería</span></h2>
+    <div class="lista" id="entradas"></div>
+  </div>
+
+  <div class="card">
+    <h2>🚿 Zonas de riego <span class="muted" style="text-transform:none;letter-spacing:0">— manual, máximo 30 min</span></h2>
+    <div class="lista" id="zonas"></div>
+    <label style="display:inline-flex;gap:6px;align-items:center;margin-top:10px;font-size:13px;color:var(--sub)">
+      <input type="checkbox" id="verAux"> Ver válvulas auxiliares (6-8)</label>
+  </div>
+
+  <div class="card">
+    <h2>📝 Últimos avisos</h2>
+    <table><tbody id="ultEventos"></tbody></table>
+  </div>
+</section>
+
+<!-- ============================ SENSORES ============================ -->
+<section id="p-sensores" class="oculto">
+  <h1>Sensores de humedad</h1>
+  <p class="sub">Si apagas un sensor, la S3 deja de usarlo y Jarvis no avisa de que está caído. Se sincroniza con la pantalla de la S3.</p>
+  <div class="lista" id="sensores"></div>
+</section>
+
+<!-- ============================ PROGRAMADOR ============================ -->
+<section id="p-programador" class="oculto">
+  <h1>Programador</h1>
+  <p class="sub">Hasta 3 turnos por zona. Se guardan en la placa S3 y siguen funcionando aunque el servidor esté apagado.</p>
+
+  <div class="card">
+    <h2>🧠 Riego inteligente</h2>
+    <div class="item">
+      <div class="info"><b>Riego inteligente</b>
+        <small>Ajusta los riegos según humedad del suelo, clima y época del año (se configurará en la Fase 4).</small></div>
+      <label class="switch"><input type="checkbox" id="swInt"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📅 Turnos por zona</h2>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Zona</th><th>Turno</th><th>Hora</th><th>Minutos</th><th>Días</th></tr></thead>
+      <tbody id="tablaProg"><tr><td colspan="5" class="muted">Esperando los programas de la S3…</td></tr></tbody>
+    </table>
+    </div>
+    <label style="display:inline-flex;gap:6px;align-items:center;margin-top:10px;font-size:13px;color:var(--sub)">
+      <input type="checkbox" id="progAux"> Ver válvulas auxiliares (6-8)</label>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn verde" id="btnGuardar">💾 Enviar a la S3</button>
+      <button class="btn ghost" id="btnDeshacer">↺ Deshacer cambios</button>
+      <span id="progEstado" class="muted" style="align-self:center;font-size:13px"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ HISTORIAL ============================ -->
+<!-- ============================ INTELIGENTE ============================ -->
+<section id="p-inteligente" class="oculto">
+  <h1>Riego inteligente</h1>
+  <p class="sub">Cada día calcula cuánto regar en cada zona (en % sobre tus programas) según el tiempo, la época, el cultivo y la humedad real, y va aprendiendo. La S3 solo lo aplica si su interruptor "Riego inteligente" está activado; si deja de recibir ajustes, vuelve sola al 100 %.</p>
+
+  <div class="grid c3">
+    <div class="card">
+      <h2>⚙️ Modo</h2>
+      <div class="fila"><span class="lab">Cerebro</span><span class="dat">
+        <select class="caja" id="iModo"><option value="prueba">Prueba (calcula, no envía)</option><option value="activo">Activo (envía a la S3)</option></select></span></div>
+      <div class="fila"><span class="lab">Hora del cálculo</span><span class="dat"><input class="caja" type="time" id="iHora"></span></div>
+      <div class="fila"><span class="lab">Interruptor en la S3</span><span class="dat" id="iS3">--</span></div>
+    </div>
+    <div class="card">
+      <h2>📍 Ubicación</h2>
+      <div style="display:flex;gap:6px"><input class="caja" id="iBuscar" placeholder="Ej.: Toledo" style="flex:1"><button class="btn pq" id="iBtnBuscar">Buscar</button></div>
+      <div id="iResultados" style="margin-top:6px"></div>
+      <div class="fila"><span class="lab">Lugar</span><span class="dat" id="iLugar">--</span></div>
+      <div class="fila"><span class="lab">Coordenadas</span><span class="dat" id="iCoord">--</span></div>
+    </div>
+    <div class="card">
+      <h2>🌦 Fuentes del tiempo</h2>
+      <div class="fila"><span class="lab">Open-Meteo</span><span class="dat ok">siempre</span></div>
+      <div class="fila"><span class="lab">AEMET</span><span class="dat"><label class="switch"><input type="checkbox" id="iAemet"><span class="slider"></span></label></span></div>
+      <div class="fila"><span class="lab">Municipio AEMET</span><span class="dat"><input class="caja" id="iMuni" style="width:80px" maxlength="5"></span></div>
+      <div class="fila"><span class="lab">Clave AEMET</span><span class="dat"><span id="iClaveEst">--</span> <button class="btn ghost pq" id="iBtnClave">Poner / cambiar</button></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🛡 Reglas de seguridad</h2>
+    <div class="grid c3">
+      <div class="fila"><span class="lab">No regar si se prevén ≥ (mm)</span><span class="dat"><input class="caja" type="number" step="0.5" id="iLlMm" style="width:80px"></span></div>
+      <div class="fila"><span class="lab">… con probabilidad ≥ (%)</span><span class="dat"><input class="caja" type="number" id="iLlProb" style="width:80px"></span></div>
+      <div class="fila"><span class="lab">No regar si la mínima baja de (°C)</span><span class="dat"><input class="caja" type="number" step="0.5" id="iTmin" style="width:80px"></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🌱 Zonas</h2>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Zona</th><th>Activa</th><th>Cultivo</th><th>Sensor</th><th>Humedad baja / alta</th><th>Sombra %</th><th>Ajuste mín / máx</th><th>Factor %</th><th>Aprendido</th></tr></thead>
+      <tbody id="iZonas"></tbody>
+    </table></div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn verde" id="iGuardar">💾 Guardar configuración</button>
+      <button class="btn" id="iSimular">🧪 Simular ahora</button>
+      <span id="iEstado" class="muted" style="align-self:center;font-size:13px"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧠 Resultado</h2>
+    <div id="iResultado" class="muted">Pulsa "Simular ahora" para ver qué haría hoy (no envía nada ni aprende).</div>
+  </div>
+
+  <div class="card">
+    <h2>📈 Ajustes de los últimos 30 días</h2>
+    <svg class="grafica" id="gAjustes"></svg><div class="leyenda" id="lAjustes"></div>
+    <div style="max-height:360px;overflow:auto;margin-top:10px"><table><tbody id="iDecisiones"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>🎓 Lo que ha aprendido</h2>
+    <div id="iAprendido" class="muted">--</div>
+  </div>
+</section>
+
+<section id="p-historial" class="oculto">
+  <h1>Historial</h1>
+  <p class="sub">Una lectura cada 5 minutos. Se guarda un año.</p>
+  <div class="tabs-int" id="rango">
+    <button class="btn pq verde" data-h="24">24 h</button>
+    <button class="btn pq ghost" data-h="168">7 días</button>
+    <button class="btn pq ghost" data-h="720">30 días</button>
+    <button class="btn pq ghost" data-h="8760">1 año</button>
+  </div>
+  <div class="card"><h2>🌱 Humedad del suelo (%)</h2><svg class="grafica" id="gSuelo"></svg><div class="leyenda" id="lSuelo"></div></div>
+  <div class="card"><h2>🛢 Depósito (%) y lluvia</h2><svg class="grafica" id="gDep"></svg><div class="leyenda" id="lDep"></div></div>
+  <div class="card"><h2>🌡 Temperatura (°C) y humedad del aire (%)</h2><svg class="grafica" id="gClima"></svg><div class="leyenda" id="lClima"></div></div>
+  <div class="card">
+    <h2>📝 Riegos, órdenes y avisos</h2>
+    <div class="tabs-int" id="filtroEv">
+      <button class="btn pq verde" data-t="">Todo</button>
+      <button class="btn pq ghost" data-t="valvula">Válvulas</button>
+      <button class="btn pq ghost" data-t="aviso">Avisos de placas</button>
+      <button class="btn pq ghost" data-t="orden">Órdenes web</button>
+      <button class="btn pq ghost" data-t="averia">Averías</button>
+      <button class="btn pq ghost" data-t="placa">Placas</button>
+      <button class="btn pq ghost" data-t="vigilante">Vigilante</button>
+      <button class="btn pq ghost" data-t="cerebro">Cerebro</button>
+    </div>
+    <div style="max-height:480px;overflow:auto"><table><tbody id="tablaEv"></tbody></table></div>
+  </div>
+</section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+let EST = null;            // ultimo /api/estado
+let PROG = null;           // copia editable de los programas
+let progSucio = false;
+const DIAS = ['L','M','X','J','V','S','D'];
+const COL = ['#58a6ff','#3fb950','#d29922','#f85149','#bc8cff','#39c5cf','#ff9bce','#e3b341'];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(t, err){ const e=$('toast'); e.textContent=t; e.className='toast show'+(err?' err':''); clearTimeout(e._t); e._t=setTimeout(()=>e.className='toast',3500); }
+
+async function api(ruta, datos){
+  const op = datos === undefined ? {} :
+    {method:'POST', headers:{'Content-Type':'application/json','X-Riego':'1'}, body:JSON.stringify(datos)};
+  const r = await fetch(ruta, op);
+  if (r.status === 401){ location.href='/login'; throw new Error('sesion'); }
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(d.detail || ('Error '+r.status));
+  return d;
+}
+async function orden(ruta, datos, ok){
+  try { await api(ruta, datos); toast(ok || 'Orden enviada'); setTimeout(cargar, 900); }
+  catch(e){ if (e.message!=='sesion') toast(e.message, true); }
+}
+function hace(s){ if (s==null) return 'esperando'; if (s<90) return 'hace '+s+' s'; if (s<5400) return 'hace '+Math.round(s/60)+' min'; return 'hace '+Math.round(s/3600)+' h'; }
+function fecha(ts){ const d=new Date(ts*1000); return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}); }
+function dur(s){ const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60); return (d?d+' d ':'')+(h?h+' h ':'')+m+' min'; }
+
+// ----------------------------------------------------------- navegacion
+document.querySelectorAll('nav a[data-p]').forEach(a => a.onclick = () => ver(a.dataset.p));
+function ver(p){
+  document.querySelectorAll('nav a[data-p]').forEach(a => a.classList.toggle('activo', a.dataset.p===p));
+  document.querySelectorAll('main > section').forEach(s => s.classList.toggle('oculto', s.id!=='p-'+p));
+  try { localStorage.setItem('riegoPag', p); } catch(e){}
+  if (p==='historial') cargarHistorial();
+  if (p==='inteligente') cargarInteligente();
+}
+$('salir').onclick = async () => { try { await api('/api/logout', {}); } catch(e){} location.href='/login'; };
+
+// ----------------------------------------------------------- estado
+async function cargar(){
+  try { EST = await api('/api/estado'); }
+  catch(e){ if (e.message!=='sesion'){ $('chipMqtt').textContent='● sin conexión con el gestor'; $('chipMqtt').className='chip mal'; } return; }
+  const d = EST;
+  $('chipMqtt').textContent = d.mqtt ? '● Broker conectado' : '● Broker sin conexión';
+  $('chipMqtt').className = 'chip ' + (d.mqtt ? 'on' : 'mal');
+  $('chipInt').textContent = 'Inteligente: ' + (d.inteligente==null ? '--' : d.inteligente ? 'ON' : 'OFF');
+  $('chipInt').className = 'chip ocultar-movil ' + (d.inteligente ? 'on' : '');
+  $('subPanel').textContent = 'Riego · usuario ' + (d.usuario||'') + ' · web ' + d.version_web;
+  pintarPlacas(d); pintarClima(d); pintarValvulas(d); pintarSensores(d); pintarProgramas(d);
+}
+
+function pintarPlacas(d){
+  let h='';
+  for (const [k,p] of Object.entries(d.placas)){
+    const i = p.info || {};
+    const est = p.online ? '<span class="ok">● en línea</span>' : '<span class="mal">● CAÍDA</span>';
+    const rssi = i.rssi!=null ? i.rssi+' dBm' + (i.rssi < -80 ? ' ⚠' : '') : '--';
+    h += `<div class="card"><h2>${k==='s3'?'🖥':k==='sensores'?'🌧':'📡'} ${esc(p.nombre)}</h2>
+      <div class="fila"><span class="lab">Estado</span><span class="dat">${est}</span></div>
+      <div class="fila"><span class="lab">Versión</span><span class="dat">${esc(i.version||'--')}</span></div>
+      <div class="fila"><span class="lab">IP · WiFi</span><span class="dat">${esc(i.ip||'--')} · ${rssi}</span></div>
+      <div class="fila"><span class="lab">Encendida</span><span class="dat">${i.uptime_s!=null?dur(i.uptime_s):'--'}</span></div>
+      <div class="fila"><span class="lab">Broker</span><span class="dat" style="font-size:12px">${esc(i.broker||'--')}</span></div>
+      <div class="fila"><span class="lab">Último arranque</span><span class="dat">${esc(i.arranque||'--')}</span></div>
+      <div class="fila"><span class="lab">Último informe</span><span class="dat">${hace(p.hace_s)}</span></div></div>`;
+  }
+  $('placas').innerHTML = h;
+}
+
+function pintarClima(d){
+  const n = v => (v==null||v==='') ? '--' : v;
+  $('vTemp').textContent = d.clima.temperatura!=null ? n(d.clima.temperatura)+' °C' : '--';
+  $('vHum').textContent  = d.clima.humedad!=null ? n(d.clima.humedad)+' %' : '--';
+  $('vLluvia').innerHTML = d.lluvia.valor==null ? '--' : d.lluvia.valor ? '<span class="aviso">🌧 Lloviendo</span>' : 'Seco';
+  const dep = d.deposito.nivel;
+  $('vDep').innerHTML = dep==null ? '--' : `<span class="${dep<10?'mal':dep<25?'aviso':''}">${dep} %</span>`;
+  $('barDep').style.width = (dep||0)+'%';
+  $('barDep').style.background = dep!=null && dep<10 ? 'var(--danger)' : dep<25 ? 'var(--warn)' : 'var(--accent2)';
+  const s3 = d.placas.s3.info || {};
+  let bloq = [];
+  if (d.valvulas['1'].abierta===false) bloq.push('entrada bomba cerrada');
+  if (d.lluvia.valor) bloq.push('lloviendo');
+  if (dep!=null && dep<10) bloq.push('depósito bajo');
+  $('vBloqueo').innerHTML = bloq.length ? '<span class="mal">Bloqueado: '+bloq.join(', ')+'</span>' : '<span class="ok">Sí</span>';
+  $('vRegando').textContent = s3.zonas_regando ?? '--';
+  $('vCola').textContent = s3.en_cola ?? '--';
+}
+
+function pintarValvulas(d){
+  // Entradas: V1 y V9
+  let h='';
+  for (const id of ['1','9']){
+    const v = d.valvulas[id];
+    const abierta = v.abierta;
+    const txt = abierta==null ? '<span class="muted">sin dato</span>' : abierta ? '<span class="ok">ABIERTA</span>' : '<span class="mal">CERRADA POR AVERÍA</span>';
+    const btn = abierta===false
+      ? `<button class="btn verde pq" onclick="averia(${id},false)">Reabrir</button>`
+      : `<button class="btn peligro pq" onclick="averia(${id},true)">⚠ Avería: cerrar</button>`;
+    h += `<div class="item ${abierta===false?'averia':''}"><div class="icono">${abierta===false?'⛔':'🚰'}</div>
+      <div class="info"><b>${id}. ${esc(v.nombre)}</b><small>${txt}${id==='9'?' · placa DevKit':' · placa S3'}</small></div>${btn}</div>`;
+  }
+  $('entradas').innerHTML = h;
+
+  // Zonas 2-8
+  const aux = $('verAux').checked;
+  h='';
+  for (let i=2;i<=8;i++){
+    if (i>5 && !aux) continue;
+    const v = d.valvulas[String(i)];
+    const ab = v.abierta;
+    const txt = ab==null ? '<span class="muted">sin dato</span>' : ab ? `<span class="ok">REGANDO${v.auto?' (programa)':''}</span>` : 'cerrada';
+    const ctrl = ab
+      ? `<button class="btn ghost pq" onclick="zona(${i},'cerrar')">Cerrar</button>`
+      : `<select class="caja" id="min${i}">${[5,10,15,20,30].map(m=>`<option ${m===10?'selected':''}>${m}</option>`).join('')}</select>
+         <button class="btn pq" onclick="zona(${i},'abrir')">Abrir</button>`;
+    h += `<div class="item"><div class="icono">${ab?'💦':'🌿'}</div>
+      <div class="info"><b>${i}. ${esc(v.nombre)}</b><small>${txt}</small></div>${ctrl}</div>`;
+  }
+  $('zonas').innerHTML = h;
+}
+$('verAux').onchange = () => EST && pintarValvulas(EST);
+
+function averia(id, cerrar){
+  const n = EST.valvulas[String(id)].nombre;
+  const t = cerrar
+    ? `¿CERRAR la válvula ${id} (${n}) por avería?\n\n${id===1?'No se podrá regar hasta que la reabras.':'No entrará agua de la calle al depósito.'}`
+    : `¿Reabrir la válvula ${id} (${n})?`;
+  if (!confirm(t)) return;
+  orden('/api/averia/'+id, {cerrar}, cerrar ? 'Cerrando '+n : 'Abriendo '+n);
+}
+function zona(id, accion){
+  const datos = {accion};
+  if (accion==='abrir') datos.minutos = parseInt($('min'+id).value);
+  orden('/api/valvula/'+id, datos);
+}
+
+// ----------------------------------------------------------- sensores
+function pintarSensores(d){
+  let h='';
+  for (let i=1;i<=8;i++){
+    const n = d.nodos[String(i)];
+    let txt;
+    if (!n.activo) txt = '<span class="muted">desactivado · sin avisos</span>';
+    else if (n.humedad==null) txt = '<span class="muted">esperando datos</span>';
+    else if (!n.al_dia) txt = `<span class="aviso">sin señal (${hace(n.hace_s)})</span>`;
+    else txt = `<span class="ok">en línea</span> · ${hace(n.hace_s)}`;
+    const val = n.humedad==null ? '--' : n.humedad+' %';
+    const extra = [n.version ? 'v'+n.version : '', n.via || ''].filter(Boolean).join(' · ');
+    h += `<div class="item ${n.activo?'':'apagado'}"><div class="icono">🌱</div>
+      <div class="info"><b>${esc(n.nombre)} · ${val}</b><small>${txt}${extra ? ' · '+esc(extra) : ''}</small>
+      ${n.activo && n.humedad!=null ? `<div class="barra"><i style="width:${n.humedad}%"></i></div>`:''}</div>
+      <label class="switch" title="Activar / desactivar"><input type="checkbox" ${n.activo?'checked':''}
+        onchange="sensor(${i},this.checked)"><span class="slider"></span></label></div>`;
+  }
+  $('sensores').innerHTML = h;
+}
+function sensor(i, activo){ orden('/api/sensor/'+i, {activo}, 'Sensor N'+i+(activo?' activado':' desactivado')); }
+
+// ----------------------------------------------------------- programador
+function pintarProgramas(d){
+  $('swInt').checked = !!d.inteligente;
+  if (progSucio) return;               // no piso lo que se esta editando
+  if (!d.programas || !d.programas.zonas){ return; }
+  PROG = JSON.parse(JSON.stringify(d.programas.zonas));
+  tablaProg();
+}
+function tablaProg(){
+  if (!PROG) return;
+  const aux = $('progAux').checked;
+  let h='';
+  for (let z=2; z<=8; z++){
+    if (z>5 && !aux) continue;
+    const turnos = PROG[String(z)] || [];
+    const nombre = EST ? EST.valvulas[String(z)].nombre : 'V'+z;
+    for (let t=0;t<3;t++){
+      const p = turnos[t] || {h:6,m:0,min:0,dias:127};
+      const hh = String(p.h).padStart(2,'0')+':'+String(p.m).padStart(2,'0');
+      const dias = DIAS.map((dn,b)=>`<button class="dia ${(p.dias>>b)&1?'on':''}" onclick="dia(${z},${t},${b})">${dn}</button>`).join('');
+      h += `<tr style="${p.min?'':'opacity:.6'}">${t===0?`<td rowspan="3"><b>${z}. ${esc(nombre)}</b></td>`:''}
+        <td>${t+1}</td>
+        <td><input class="caja" type="time" value="${hh}" onchange="cambio(${z},${t},'hora',this.value)"></td>
+        <td><input class="caja" type="number" min="0" max="${EST?EST.limites.prog_min:120}" style="width:70px" value="${p.min}"
+             onchange="cambio(${z},${t},'min',this.value)"> <span class="muted" style="font-size:11px">${p.min?'':'apagado'}</span></td>
+        <td><div class="dias">${dias}</div></td></tr>`;
+    }
+  }
+  $('tablaProg').innerHTML = h;
+  $('progEstado').textContent = progSucio ? 'Cambios sin enviar' : 'Igual que en la S3';
+  $('progEstado').className = progSucio ? 'aviso' : 'muted';
+}
+function asegura(z,t){ PROG[z] = PROG[z] || []; while (PROG[z].length<3) PROG[z].push({h:6,m:0,min:0,dias:127}); return PROG[z][t]; }
+function cambio(z,t,campo,val){
+  const p = asegura(String(z),t);
+  if (campo==='hora'){ const [h,m]=val.split(':').map(Number); p.h=h||0; p.m=m||0; }
+  else p.min = Math.max(0, Math.min(EST?EST.limites.prog_min:120, parseInt(val)||0));
+  progSucio = true; tablaProg();
+}
+function dia(z,t,b){ const p = asegura(String(z),t); p.dias ^= (1<<b); progSucio = true; tablaProg(); }
+$('progAux').onchange = tablaProg;
+$('btnDeshacer').onclick = () => { progSucio = false; if (EST) pintarProgramas(EST); };
+$('btnGuardar').onclick = async () => {
+  if (!PROG) return;
+  try { await api('/api/programas', {zonas: PROG}); progSucio = false; toast('Programas enviados a la S3'); setTimeout(cargar, 1500); }
+  catch(e){ if (e.message!=='sesion') toast(e.message, true); }
+};
+$('swInt').onchange = e => orden('/api/inteligente', {on: e.target.checked}, 'Riego inteligente '+(e.target.checked?'activado':'desactivado'));
+
+// ----------------------------------------------------------- historial
+let HORAS = 24, TIPO = '';
+document.querySelectorAll('#rango button').forEach(b => b.onclick = () => {
+  HORAS = +b.dataset.h; document.querySelectorAll('#rango button').forEach(x => x.className='btn pq '+(x===b?'verde':'ghost')); cargarHistorial(); });
+document.querySelectorAll('#filtroEv button').forEach(b => b.onclick = () => {
+  TIPO = b.dataset.t; document.querySelectorAll('#filtroEv button').forEach(x => x.className='btn pq '+(x===b?'verde':'ghost')); cargarEventos(); });
+
+async function cargarHistorial(){
+  try {
+    const h = await api('/api/historial?horas='+HORAS);
+    const c = h.columnas, F = h.filas;
+    const serie = n => F.map(f => [f[0], f[c.indexOf(n)]]);
+    const nodos = [];
+    for (let i=1;i<=8;i++){ const s=serie('n'+i); if (s.some(p=>p[1]!=null)) nodos.push({nombre:EST?EST.nodos[i].nombre:'N'+i, color:COL[i-1], datos:s}); }
+    grafica('gSuelo','lSuelo', nodos, 0, 100);
+    grafica('gDep','lDep', [{nombre:'Depósito',color:COL[0],datos:serie('deposito')},
+                            {nombre:'Lluvia (100 = llueve)',color:COL[2],datos:serie('lluvia').map(p=>[p[0],p[1]==null?null:p[1]*100]),escalon:true}], 0, 100);
+    grafica('gClima','lClima', [{nombre:'Temperatura °C',color:COL[3],datos:serie('temp')},
+                                {nombre:'Humedad aire %',color:COL[0],datos:serie('hum_aire')}], null, null);
+  } catch(e){ if (e.message!=='sesion') toast(e.message, true); }
+  cargarEventos();
+}
+async function cargarEventos(){
+  try {
+    const ev = await api('/api/eventos?limite=300'+(TIPO?'&tipo='+TIPO:''));
+    $('tablaEv').innerHTML = ev.length ? ev.map(filaEv).join('') : '<tr><td class="muted">Sin registros todavía</td></tr>';
+  } catch(e){}
+}
+function filaEv(e){
+  const ic = {valvula:'💧',aviso:'📟',orden:'👤',averia:'⛔',placa:'🔌',vigilante:'🛡',cerebro:'🧠',sensor:'🌱',programa:'📅',login:'🔑',clima:'🌧'}[e.tipo]||'•';
+  const quien = {s3:'S3', sensores:'DevKit', puente:'C3', vigilante:'Vigilante', cerebro:'Cerebro', web:'Web', valvula:'Válvula'}[e.origen] || e.origen || '';
+  return `<tr><td style="white-space:nowrap" class="muted">${fecha(e.ts)}</td><td class="ic">${ic}</td>`
+       + `<td style="white-space:nowrap"><span class="badge">${esc(quien)}</span></td><td>${esc(e.texto)}</td></tr>`;
+}
+async function ultimosEventos(){
+  try { const ev = await api('/api/eventos?limite=8');
+        $('ultEventos').innerHTML = ev.length ? ev.map(filaEv).join('') : '<tr><td class="muted">Sin avisos todavía</td></tr>'; } catch(e){}
+}
+
+// Grafica de lineas en SVG (sin librerias externas: funciona sin internet)
+function grafica(idSvg, idLey, series, ymin, ymax){
+  const svg = $(idSvg), W = svg.clientWidth || 600, H = svg.clientHeight || 220, ml=34, mr=8, mt=8, mb=22;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pts = series.flatMap(s => s.datos.filter(p=>p[1]!=null));
+  if (!pts.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" fill="#8b949e" text-anchor="middle" font-size="13">Sin datos en este periodo</text>`; $(idLey).innerHTML=''; return; }
+  const t0 = Math.min(...pts.map(p=>p[0])), t1 = Math.max(...pts.map(p=>p[0])) || t0+1;
+  let y0 = ymin ?? Math.floor(Math.min(...pts.map(p=>p[1]))-2), y1 = ymax ?? Math.ceil(Math.max(...pts.map(p=>p[1]))+2);
+  if (y1===y0) y1 = y0+1;
+  const X = t => ml + (t-t0)/((t1-t0)||1)*(W-ml-mr), Y = v => mt + (1-(v-y0)/(y1-y0))*(H-mt-mb);
+  let g = '';
+  for (let k=0;k<=4;k++){ const v=y0+(y1-y0)*k/4, y=Y(v);
+    g += `<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="#30363d" stroke-width="1"/>
+          <text x="${ml-4}" y="${y+4}" fill="#8b949e" font-size="10" text-anchor="end">${Math.round(v)}</text>`; }
+  for (let k=0;k<=4;k++){ const t=t0+(t1-t0)*k/4, d=new Date(t*1000);
+    const lab = (t1-t0)>2*86400 ? d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}) : d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    g += `<text x="${X(t)}" y="${H-6}" fill="#8b949e" font-size="10" text-anchor="${k===0?'start':k===4?'end':'middle'}">${lab}</text>`; }
+  const salto = Math.max(900, (t1-t0)/100);       // hueco sin datos -> corto la linea
+  for (const s of series){
+    let d='', prev=null;
+    for (const [t,v] of s.datos){
+      if (v==null){ prev=null; continue; }
+      const cmd = (prev===null || t-prev>salto*1.5) ? 'M' : 'L';
+      if (s.escalon && cmd==='L') d += `L${X(t).toFixed(1)},${Y(lastV).toFixed(1)} `;
+      d += `${cmd}${X(t).toFixed(1)},${Y(v).toFixed(1)} `; prev=t; var lastV=v;
+    }
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  svg.innerHTML = g;
+  $(idLey).innerHTML = series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.nombre)}</span>`).join('');
+}
+
+// ----------------------------------------------------------- inteligente
+let ICFG = null, ICULT = {};
+const NOMBRE_ZONA = z => EST ? EST.valvulas[z].nombre : 'V'+z;
+async function cargarInteligente(){
+  try {
+    const d = await api('/api/cerebro');
+    ICFG = d.config; ICULT = d.cultivos;
+    $('iModo').value = ICFG.modo; $('iHora').value = ICFG.hora_calculo;
+    $('iS3').innerHTML = d.s3_inteligente ? '<span class="ok">activado</span>' : '<span class="aviso">apagado (no se aplica)</span>';
+    const u = ICFG.ubicacion;
+    $('iLugar').textContent = u.nombre || (u.lat==null ? 'sin elegir' : '--');
+    $('iCoord').textContent = u.lat==null ? '--' : `${u.lat.toFixed(4)}, ${u.lon.toFixed(4)}${u.altitud!=null?' · '+Math.round(u.altitud)+' m':''}`;
+    $('iAemet').checked = ICFG.aemet.usar; $('iMuni').value = ICFG.aemet.municipio;
+    $('iClaveEst').innerHTML = d.aemet_clave_puesta ? '<span class="ok">puesta</span>' : '<span class="muted">sin clave</span>';
+    $('iLlMm').value = ICFG.lluvia_saltar_mm; $('iLlProb').value = ICFG.lluvia_saltar_prob; $('iTmin').value = ICFG.temp_min_helada;
+    const apr = d.aprendizaje || {zonas:{}, fuentes:{}};
+    let h='';
+    for (const [z, c] of Object.entries(ICFG.zonas)){
+      const opc = Object.entries(ICULT).map(([k,n])=>`<option value="${k}" ${k===c.cultivo?'selected':''}>${esc(n)}</option>`).join('');
+      const sen = [0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===c.sensor?'selected':''}>${n?'N'+n:'ninguno'}</option>`).join('');
+      const k = (apr.zonas[z]||{}).k ?? 1;
+      h += `<tr data-z="${z}"><td><b>${z}. ${esc(NOMBRE_ZONA(z))}</b></td>
+        <td><input type="checkbox" data-k="activa" ${c.activa?'checked':''}></td>
+        <td><select class="caja" data-k="cultivo">${opc}</select></td>
+        <td><select class="caja" data-k="sensor">${sen}</select></td>
+        <td><input class="caja" type="number" data-k="hum_baja" value="${c.hum_baja}" style="width:60px"> / <input class="caja" type="number" data-k="hum_alta" value="${c.hum_alta}" style="width:60px"></td>
+        <td><input class="caja" type="number" data-k="sombra" value="${c.sombra}" style="width:60px"></td>
+        <td><input class="caja" type="number" data-k="ajuste_min" value="${c.ajuste_min}" style="width:60px"> / <input class="caja" type="number" data-k="ajuste_max" value="${c.ajuste_max}" style="width:65px"></td>
+        <td><input class="caja" type="number" data-k="factor" value="${c.factor}" style="width:65px"></td>
+        <td>x${Number(k).toFixed(2)}</td></tr>`;
+    }
+    $('iZonas').innerHTML = h;
+    const f = apr.fuentes || {};
+    $('iAprendido').innerHTML = Object.entries(ICFG.zonas).map(([z])=>{
+        const a = (apr.zonas||{})[z]; return a ? `${esc(NOMBRE_ZONA(z))}: factor aprendido x${a.k.toFixed(2)} (${a.dias} días)` : `${esc(NOMBRE_ZONA(z))}: aún sin datos`;
+      }).join('<br>') + '<br><br>' + Object.entries(f).map(([n,v])=>
+        `${n==='openmeteo'?'Open-Meteo':'AEMET'}: acierta un ${Math.round((1-v.error)*100)} % con la lluvia (${v.dias} días comprobados)`).join('<br>');
+    if (d.ultimo) pintarResultado(d.ultimo);
+  } catch(e){ if (e.message!=='sesion') toast(e.message, true); }
+  cargarDecisiones();
+}
+function leerFormInteligente(){
+  const zonas = {};
+  document.querySelectorAll('#iZonas tr').forEach(tr => {
+    const z = tr.dataset.z, o = {};
+    tr.querySelectorAll('[data-k]').forEach(el => {
+      o[el.dataset.k] = el.type==='checkbox' ? el.checked : (el.tagName==='SELECT' && el.dataset.k==='cultivo' ? el.value : Number(el.value));
+    });
+    zonas[z] = o;
+  });
+  return {modo:$('iModo').value, hora_calculo:$('iHora').value, aemet:{usar:$('iAemet').checked, municipio:$('iMuni').value},
+          lluvia_saltar_mm:Number($('iLlMm').value), lluvia_saltar_prob:Number($('iLlProb').value),
+          temp_min_helada:Number($('iTmin').value), zonas};
+}
+$('iGuardar').onclick = async () => {
+  const datos = leerFormInteligente();
+  if (datos.modo==='activo' && ICFG && ICFG.modo!=='activo' &&
+      !confirm('¿Pasar a modo ACTIVO?\n\nEl cerebro empezará a mandar ajustes a la S3 cada día. Se aplican solo si el interruptor "Riego inteligente" de la S3 está activado.')) return;
+  try { await api('/api/cerebro', datos); toast('Configuración guardada'); cargarInteligente(); }
+  catch(e){ if (e.message!=='sesion') toast(e.message, true); }
+};
+$('iBtnBuscar').onclick = async () => {
+  const q = $('iBuscar').value.trim(); if (q.length<2) return;
+  $('iResultados').innerHTML = '<span class="muted">Buscando…</span>';
+  try {
+    const r = await api('/api/cerebro/buscar?q='+encodeURIComponent(q));
+    $('iResultados').innerHTML = r.length ? r.map((l,i)=>`<div class="fila"><span>${esc(l.nombre)}${l.altitud!=null?' · '+Math.round(l.altitud)+' m':''}</span><button class="btn pq" data-i="${i}">Elegir</button></div>`).join('') : '<span class="muted">No encontrado</span>';
+    $('iResultados').querySelectorAll('button').forEach(b => b.onclick = async () => {
+      try { await api('/api/cerebro', {ubicacion: r[+b.dataset.i]}); $('iResultados').innerHTML=''; toast('Ubicación guardada'); cargarInteligente(); }
+      catch(e){ toast(e.message, true); }
+    });
+  } catch(e){ $('iResultados').innerHTML = `<span class="mal">${esc(e.message)}</span>`; }
+};
+$('iBtnClave').onclick = async () => {
+  const c = prompt('Pega la clave de AEMET OpenData (se guarda en el servidor y no se vuelve a mostrar). Vacío = quitarla.');
+  if (c===null) return;
+  try { await api('/api/cerebro/aemet', {clave:c}); toast('Clave de AEMET guardada'); cargarInteligente(); }
+  catch(e){ if (e.message!=='sesion') toast(e.message, true); }
+};
+$('iSimular').onclick = async () => {
+  $('iEstado').textContent = 'Calculando…';
+  try { pintarResultado(await api('/api/cerebro/calcular', {real:false})); $('iEstado').textContent = 'Simulación (no se ha enviado ni aprendido nada)'; }
+  catch(e){ $('iEstado').textContent=''; if (e.message!=='sesion') toast(e.message, true); }
+};
+function pintarResultado(r){
+  const t = r.tiempo || {};
+  let h = `<div class="sub" style="margin-bottom:8px">${r.simulacion?'Simulación':'Cálculo'} del ${esc(r.fecha)} · ET0 ayer/hoy ${t.et0?t.et0[0]+'/'+t.et0[1]:'--'} mm · lluvia prevista hoy ${t.lluvia?t.lluvia[1]:'--'} mm · probabilidad combinada ${r.prob_lluvia}% · mínima hoy ${t.tmin?t.tmin[1]:'--'} °C · ${r.enviado?'<span class="ok">enviado a la S3</span>':'no enviado'}</div>`;
+  h += (r.avisos||[]).map(a=>`<div class="aviso">⚠ ${esc(a)}</div>`).join('');
+  h += '<table><tbody>' + Object.entries(r.zonas).map(([z,d])=>
+    `<tr><td><b>${z}. ${esc(NOMBRE_ZONA(z))}</b></td><td style="font-size:18px;font-weight:700" class="${d.ajuste===0?'mal':d.ajuste>100?'aviso':'ok'}">${d.ajuste}%</td><td>${d.motivos.map(esc).join('<br>')}</td></tr>`).join('') + '</tbody></table>';
+  $('iResultado').innerHTML = h;
+}
+async function cargarDecisiones(){
+  try {
+    const d = await api('/api/cerebro/decisiones?dias=30');
+    $('iDecisiones').innerHTML = d.length ? d.slice(0,120).map(x=>`<tr><td class="muted" style="white-space:nowrap">${esc(x.fecha)}</td><td>${esc(NOMBRE_ZONA(String(x.zona)))}</td><td><b>${x.ajuste}%</b></td><td>${x.enviado?'enviado':'<span class="muted">prueba</span>'}</td><td style="font-size:12px">${(x.detalle.motivos||[]).map(esc).join(' · ')}</td></tr>`).join('') : '<tr><td class="muted">Todavía no hay cálculos diarios</td></tr>';
+    const series = {};
+    for (const x of d.slice().reverse()){ const ts = Math.floor(new Date(x.fecha+'T12:00:00').getTime()/1000); (series[x.zona] ||= []).push([ts, x.ajuste]); }
+    grafica('gAjustes','lAjustes', Object.entries(series).map(([z,dat],i)=>({nombre:NOMBRE_ZONA(z), color:COL[i], datos:dat})), 0, null);
+  } catch(e){}
+}
+
+// ----------------------------------------------------------- arranque
+let pag = 'panel'; try { pag = localStorage.getItem('riegoPag') || 'panel'; } catch(e){}
+ver(pag);
+cargar(); ultimosEventos();
+setInterval(cargar, 5000);
+setInterval(ultimosEventos, 30000);
+</script>
+</body>
+</html>

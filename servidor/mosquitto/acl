@@ -1,0 +1,56 @@
+# =====================================================================
+#  Permisos del broker: cada usuario solo puede tocar lo suyo.
+#  read = escuchar   write = publicar   readwrite = las dos cosas
+# =====================================================================
+
+# ---- Placa central S3 (pantalla + reles 1-8) ----
+user s3
+topic read  riego/#
+topic write riego/valvula/+/estado
+topic write riego/valvula/9/set
+topic write riego/clima/temperatura
+topic write riego/clima/humedad
+topic write riego/sensor/+/activo
+topic write riego/s3/#
+
+# ---- Placa de sensores DevKit (lluvia + nivel + valvula 9) ----
+user sensores
+topic read  riego/valvula/9/set
+topic write riego/valvula/9/estado
+topic write riego/clima/lluvia
+topic write riego/deposito/nivel
+topic write riego/sensores/info
+topic write riego/sensores/evento
+
+# ---- Puente de radio C3 (nodos de humedad N1-N8) ----
+user puente
+topic write riego/sensores/nodo1
+topic write riego/sensores/nodo2
+topic write riego/sensores/nodo3
+topic write riego/sensores/nodo4
+topic write riego/sensores/nodo5
+topic write riego/sensores/nodo6
+topic write riego/sensores/nodo7
+topic write riego/sensores/nodo8
+topic write riego/puente/#
+topic write riego/puente2/#
+topic read  riego/puente/ota_nodo
+topic read  riego/puente2/ota_nodo
+
+# ---- Gestor (web + cerebro del riego) ----
+user gestor
+topic readwrite riego/#
+
+# ---- Asistente de voz (Jarvis) ----
+user jarvis
+topic readwrite frigate/#
+topic readwrite riego/#
+topic readwrite jarvis/#
+
+# ---- Administrador (pruebas y diagnostico) ----
+user admin
+topic readwrite #
+
+# ---- Frigate (grabador de las cámaras, en el PC) ----
+user frigate
+topic readwrite frigate/#

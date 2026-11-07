@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+pydantic
+paho-mqtt
+certifi
