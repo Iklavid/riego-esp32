@@ -4,6 +4,8 @@
 
 An irrigation system for a home garden built on ESP32 boards, MQTT and a small server (a Mac or Linux machine). It waters by zone using soil moisture, rain and the weather forecast, and it alerts you when something fails. Code comments and the web interface are in Spanish.
 
+![Web del riego](capturas/riego.png)
+
 - `firmware/s3-central`: ESP32-S3 with a touch screen (LVGL) and 8 valve relays.
 - `firmware/sensores-devkit`: rain, tank level and street inlet valve.
 - `firmware/puente-c3`: ESP-NOW (and 433 MHz) to MQTT bridge, which also updates the nodes over the air.

@@ -4,6 +4,8 @@
 
 Sistema de riego para casa y huerto con placas ESP32, MQTT y un servidor pequeño (un Mac o Linux). Riega por zonas según la humedad del suelo, la lluvia y la previsión del tiempo, y avisa si algo falla.
 
+![Web del riego](capturas/riego.png)
+
 ## Piezas
 | Carpeta | Qué es |
 |---|---|
